@@ -1,3 +1,5 @@
+.PHONY: dumper all
+
 all:
 	gcc test.c genetics.c -o genetics -g -Og
 	gcc parser.c genetics.c -o parser -g -Og
