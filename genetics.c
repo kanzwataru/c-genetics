@@ -4,47 +4,9 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "structs.h"
+#include "genetics.h"
 
-/* genetics */
-enum Type {
-    TYPE_OPAQUE,
-    TYPE_STRUCT,
-    TYPE_POINTER /* unused */
-};
-
-struct TypeInfo {
-    char *struct_name;
-    char *member_name;
-    char *type_name;
-    size_t size;
-    size_t count;
-    size_t offset;
-    enum Type type;
-};
-
-struct TypeInfo genetics_a[] = {
-     {"Bar", "x", "float", sizeof(float), 1, offsetof(struct Bar_A, x), TYPE_OPAQUE},
-     {"Bar", "z", "int", sizeof(int), 8, offsetof(struct Bar_A, z), TYPE_OPAQUE},
-
-     {"Foo", "a", "int", sizeof(int), 1, offsetof(struct Foo_A, a), TYPE_OPAQUE},
-     {"Foo", "b", "float", sizeof(float), 1, offsetof(struct Foo_A, b), TYPE_OPAQUE},
-     {"Foo", "bar", "Bar", sizeof(struct Bar_A), 1, offsetof(struct Foo_A, bar), TYPE_STRUCT},
-     {0}
-};
-
-struct TypeInfo genetics_b[] = {
-     {"Bar", "z", "int", sizeof(int), 8, offsetof(struct Bar_B, z), TYPE_OPAQUE},
-     {"Bar", "x", "float", sizeof(float), 1, offsetof(struct Bar_B, x), TYPE_OPAQUE},
-
-     {"Foo", "bar", "Bar", sizeof(struct Bar_A), 1, offsetof(struct Foo_B, bar), TYPE_STRUCT},
-     {"Foo", "b", "float", sizeof(float), 1, offsetof(struct Foo_B, b), TYPE_OPAQUE},
-     {"Foo", "c", "float", sizeof(float), 1, offsetof(struct Foo_B, c), TYPE_OPAQUE}, 
-     {"Foo", "a", "int", sizeof(int), 1, offsetof(struct Foo_B, a), TYPE_OPAQUE},
-     {0}
-};
-
-struct TypeInfo *find_type(const char *struct_type, const char *type, struct TypeInfo *gen)
+static struct TypeInfo *find_type(const char *struct_type, const char *type, struct TypeInfo *gen)
 {
     while(gen->struct_name != 0) {
         if(0 == strcmp(struct_type, gen->struct_name)) {
@@ -64,7 +26,7 @@ struct TypeInfo *find_type(const char *struct_type, const char *type, struct Typ
     return NULL;
 }
 
-void genetic_copy(void *dest,
+void genetics_copy(void *dest,
                   void *src, 
                   struct TypeInfo *dest_gen,
                   struct TypeInfo *src_gen,
@@ -93,7 +55,7 @@ void genetic_copy(void *dest,
 
             break;
         case TYPE_STRUCT:
-            genetic_copy((char *)dest + dest_ti->offset,
+            genetics_copy((char *)dest + dest_ti->offset,
                          (char *)src + src_ti->offset,
                          dest_gen,
                          src_gen,
@@ -111,37 +73,65 @@ void genetic_copy(void *dest,
     }
 }
 
-#define print_foo_struct(_var) \
-    printf("\n**%s**\n", #_var); \
-    printf("a: %d\n", _var.a); \
-    printf("b: %f\n", _var.b); \
-    printf("bar.x: %f\n", _var.bar.x); \
-    for(int i = 0; i < 8; ++i) { \
-        printf("bar.z[%d]: %d\n", i, _var.bar.z[i]); \
-    }
-
-int main(void)
+void genetics_print(struct TypeInfo *gen)
 {
-    struct Foo_A a = {
-        42,
-        1.337f,
-        {
-            -100.55f,
-            {10, 20, 30, 40, 50, 60, 70, 80}
-        },
-    };
+    printf("\n*** genetics printout for TypeInfo at %p ***\n", gen);
+    while(gen->struct_name != 0) {
+        printf("in %s -> %d '%s' of type '%s' with size %d at offset %d ",
+                gen->struct_name, gen->count, gen->member_name, gen->type_name, gen->size, gen->offset);
+        switch(gen->type) {
+            case TYPE_OPAQUE:
+                printf("(opaque type)\n");
+                break;
+            case TYPE_STRUCT:
+                printf("(nested struct type)\n");
+                break;
+            case TYPE_POINTER:
+                printf("(pointer type)\n");
+                break;
+            default:
+                printf("(unknown type!)\n");
+                break;
+        }
 
-    struct Foo_B b;
-    struct Foo_A c;
-    genetic_copy(&b, &a, genetics_b, genetics_a, "Foo");
-    genetic_copy(&c, &a, genetics_a, genetics_a, "Foo");
+        gen++;
+    }
+}
 
-    print_foo_struct(a);
-    print_foo_struct(b);
-    printf("c: %f\n", b.c);
+void genetics_save(FILE *file, struct TypeInfo *gen)
+{
+    struct TypeInfo *p = gen;
+    size_t count = 0, i = 0;
+    unsigned short count_out;
+    unsigned int out32;
 
-    print_foo_struct(c);
+    while(p->struct_name != 0) { ++count; ++p }
+    
+    /* temp assertions */
+    assert(sizeof(unsigned short) == 2);
+    assert(sizeof(unsigned int) == 4);
+    assert(count < 65534);
 
-    return 0;
+    fwrite(&count_out, sizeof(unsigned short), 1, file);
+    for(i = 0; i < count; ++i) {
+        assert(gen[i].struct_name);
+        assert(gen[i].member_name);
+        assert(gen[i].type_name);
+
+        fputs(gen[i].struct_name, file);
+        fputs(gen[i].member_name, file);
+        fputs(gen[i].type_name, file);
+        
+        out32 = gen[i].size;
+        fwrite(&out32, sizeof(unsigned int), 1, file);
+        
+        out32 = gen[i].count;
+        fwrite(&out32, sizeof(unsigned int), 1, file);
+        
+        out32 = gen[i].offset;
+        fwrite(&out32, sizeof(unsigned int), 1, file);
+
+        fputc(gen[i].type, file);
+    }
 }
 

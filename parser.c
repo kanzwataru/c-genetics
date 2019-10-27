@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include "genetics.h"
 
 enum Token {
     TOK_NONE,
@@ -32,8 +33,16 @@ int in_comment = 0;
 int in_line_comment = 0;
 
 #define TOK_MAX 512
+#define TYPE_MAX 1024
+
 char string[TOK_MAX];
 size_t str_top = 0;
+
+struct TypeInfo genetic[TYPE_MAX] = {0};
+size_t gen_top = 0;
+
+char *last_struct = NULL;
+char *current_struct = NULL;
 
 enum Token last_token = TOK_NONE;
 enum Token current_token = TOK_NONE;
@@ -126,12 +135,20 @@ int main(int argc, char **argv) {
                 if(last_token == TOK_NAME && state == ST_STRUCT_PREFIX) {
                     state = ST_STRUCT_NAME;
                     printf("got struct named: %s\n", string);
+                    
+                    last_struct = current_struct;
+                    current_struct = strdup(string);
+                    
                     clear_string();
                 }
                 if(last_token == TOK_NAME && state == ST_IN_STRUCT) {
                     state = ST_TYPE_PREFIX;
                     printf("    type: %s ", string);
                     last_token = TOK_NONE;
+
+                    genetic[gen_top].struct_name = current_struct;
+                    genetic[gen_top].type_name = strdup(string);
+
                     clear_string();
                 }
                 else {
@@ -143,12 +160,26 @@ int main(int argc, char **argv) {
                     printf("name: %s END VAR\n", string);
                     state = ST_IN_STRUCT;
                     last_token = TOK_NONE;
+
+                    genetic[gen_top].member_name = strdup(string);
+                    genetic[gen_top].type = TYPE_OPAQUE;
+                    ++gen_top;
+                    assert(gen_top < TYPE_MAX);
+
                     clear_string();
                 }
                 if(last_token == TOK_NAME && state == ST_STRUCT_NAME) {
                     printf("    -> name: %s END NESTED STRUCT\n", string);
                     state = ST_IN_STRUCT;
                     last_token = TOK_NONE;
+
+                    genetic[gen_top].struct_name = last_struct;
+                    genetic[gen_top].type_name = current_struct;
+                    genetic[gen_top].member_name = strdup(string);
+                    genetic[gen_top].type = TYPE_STRUCT;
+                    ++gen_top;
+                    assert(gen_top < TYPE_MAX);
+
                     clear_string();
                 }
                 else {
@@ -177,6 +208,9 @@ int main(int argc, char **argv) {
                 if(last_token == TOK_NAME && state == ST_TYPE_PREFIX) {
                     printf("name: %s ", string);
                     state = ST_IN_ARRAYNUM;
+
+                    genetic[gen_top].member_name = strdup(string);
+
                     clear_string();
                 }
                 else {
@@ -188,6 +222,12 @@ int main(int argc, char **argv) {
                     printf("count: %s END ARRAY\n", string);
                     state = ST_IN_STRUCT;
                     last_token = TOK_NONE;
+
+                    genetic[gen_top].count = atoi(string);
+                    genetic[gen_top].type = TYPE_OPAQUE;
+                    gen_top++;
+                    assert(gen_top < TYPE_MAX);
+
                     clear_string();
                 }
                 else {
@@ -196,6 +236,8 @@ int main(int argc, char **argv) {
                 break;
         }
     }
+
+    genetics_print(genetic);
 
     return 0;
 }

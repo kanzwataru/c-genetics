@@ -1,6 +1,6 @@
 all:
-	gcc genetics.c -o genetics -g -Og
-	gcc parser.c -o parser -g -Og
+	gcc test.c genetics.c -o genetics -g -Og
+	gcc parser.c genetics.c -o parser -g -Og
 
 clean:
 	rm -f genetics
