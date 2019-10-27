@@ -200,6 +200,7 @@ int main(int argc, char **argv) {
                     state = ST_IN_STRUCT;
                     last_token = TOK_NONE;
 
+                    genetic[gen_top].count = 1;
                     genetic[gen_top].member_name = strdup(string);
                     genetic[gen_top].type = TYPE_OPAQUE;
                     ++gen_top;
@@ -212,6 +213,7 @@ int main(int argc, char **argv) {
                     state = ST_IN_STRUCT;
                     last_token = TOK_NONE;
 
+                    genetic[gen_top].count = 1;
                     genetic[gen_top].struct_name = last_struct;
                     genetic[gen_top].type_name = current_struct;
                     genetic[gen_top].member_name = strdup(string);
