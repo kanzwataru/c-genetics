@@ -219,6 +219,7 @@ int main(int argc, char **argv) {
                     ++gen_top;
                     assert(gen_top < TYPE_MAX);
 
+                    current_struct = last_struct;
                     clear_string();
                 }
                 else {
