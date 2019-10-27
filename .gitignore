@@ -2,6 +2,7 @@ genetics
 parser
 dumper
 make_dumper
+util
 *.o
 *.swp
 *.dat
