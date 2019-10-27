@@ -1,5 +1,8 @@
 genetics
 parser
+dumper
+make_dumper
 *.o
 *.swp
 *.dat
+*.gen.*

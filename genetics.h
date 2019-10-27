@@ -17,10 +17,10 @@ struct TypeInfo {
     enum Type type;
 };
 
-void genetics_print(struct TypeInfo *gen);
 void genetics_copy(void *dest, void *src, struct TypeInfo *dest_gen, struct TypeInfo *src_gen, const char *type);
+
 void genetics_save(FILE *file, struct TypeInfo *gen);
 void genetics_load(FILE *file, struct TypeInfo *gen, size_t max_count);
-
+void genetics_print(struct TypeInfo *gen);
 #endif
 
