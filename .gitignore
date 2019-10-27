@@ -2,3 +2,4 @@ genetics
 parser
 *.o
 *.swp
+*.dat

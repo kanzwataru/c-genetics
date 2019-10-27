@@ -105,22 +105,28 @@ void genetics_save(FILE *file, struct TypeInfo *gen)
     unsigned short count_out;
     unsigned int out32;
 
-    while(p->struct_name != 0) { ++count; ++p }
-    
+    while(p->struct_name != 0) { ++count; ++p; }
+
     /* temp assertions */
     assert(sizeof(unsigned short) == 2);
     assert(sizeof(unsigned int) == 4);
     assert(count < 65534);
 
+    count_out = count;
     fwrite(&count_out, sizeof(unsigned short), 1, file);
     for(i = 0; i < count; ++i) {
         assert(gen[i].struct_name);
         assert(gen[i].member_name);
         assert(gen[i].type_name);
 
-        fputs(gen[i].struct_name, file);
-        fputs(gen[i].member_name, file);
-        fputs(gen[i].type_name, file);
+    #define output_string(_str) \
+        out32 = strlen(_str); \
+        fwrite(&out32, sizeof(unsigned int), 1, file); \
+        fputs(_str, file);
+
+        output_string(gen[i].struct_name);
+        output_string(gen[i].member_name);
+        output_string(gen[i].type_name);
         
         out32 = gen[i].size;
         fwrite(&out32, sizeof(unsigned int), 1, file);
@@ -135,3 +141,39 @@ void genetics_save(FILE *file, struct TypeInfo *gen)
     }
 }
 
+void genetics_load(FILE *file, struct TypeInfo *gen, size_t max_count)
+{
+    unsigned short count;
+    unsigned int in32;
+    size_t i;
+
+    memset(gen, 0, max_count);
+    
+    fread(&count, sizeof(count), 1, file);
+
+    /* temp assertions */
+    assert(count < max_count - 1);
+    assert(sizeof(unsigned short) == 2);
+    assert(sizeof(unsigned int) == 4);
+
+    for(i = 0; i < count; ++i) {
+    #define read_string(_str) \
+        fread(&in32, sizeof(in32), 1, file); \
+        _str = calloc(in32 + 1, 1); \
+        fread(_str, 1, in32, file);
+
+        read_string(gen[i].struct_name);
+        read_string(gen[i].member_name);
+        read_string(gen[i].type_name);
+
+    #define read_size(_str) \
+        fread(&in32, sizeof(in32), 1, file); \
+        _str = in32;
+
+        read_size(gen[i].size);
+        read_size(gen[i].count);
+        read_size(gen[i].offset);
+        
+        gen[i].type = fgetc(file);
+    }
+}

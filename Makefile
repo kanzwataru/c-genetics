@@ -6,4 +6,4 @@ clean:
 	rm -f genetics
 	rm -f parser
 	rm -f *.o
-
+	rm -f *.dat

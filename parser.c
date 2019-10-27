@@ -60,6 +60,43 @@ void set_token(enum Token tok) {
     }
 }
 
+void test_genetics_readwrite(void) {
+    int i, count_in = 0, count_out = 0;
+    struct TypeInfo gen[256];
+    const char *out_filename = "genetics_out.dat";
+    FILE *tmp = fopen(out_filename, "wb");
+    genetics_save(tmp, genetic);
+    fclose(tmp);
+    fopen(out_filename, "rb");
+    genetics_load(tmp, gen, 256);
+    //genetics_print(gen);
+    fclose(tmp);
+
+    while(genetic[count_out].struct_name != 0) { ++count_out; }
+    while(gen[count_in].struct_name != 0) { ++count_in; }
+    
+    assert(count_out == count_in);
+    for(i = 0; i < count_in; ++i) {
+    #define compare_string(_str) \
+        assert(0 == strcmp(gen[i]._str, genetic[i]._str));
+    #define compare_vals(_val) \
+        assert(gen[i]._val == genetic[i]._val);
+
+        compare_string(struct_name);
+        compare_string(member_name);
+        compare_string(type_name);
+        compare_vals(size);
+        compare_vals(count);
+        compare_vals(offset);
+        compare_vals(type);
+    
+    #undef compare_string
+    #undef compare_vals
+    }
+
+    printf("Successful read/write of genetics data to/from %s\n", out_filename);
+}
+
 int main(int argc, char **argv) {
     puts("");
 
@@ -238,6 +275,6 @@ int main(int argc, char **argv) {
     }
 
     genetics_print(genetic);
-
+    test_genetics_readwrite();
     return 0;
 }
