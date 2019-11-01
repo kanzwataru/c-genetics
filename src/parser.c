@@ -27,82 +27,40 @@ enum State {
     ST_IN_ARRAYNUM
 };
 
-int c;
-int last = 0;
-int in_comment = 0;
-int in_line_comment = 0;
+static int c;
+static int last = 0;
+static int in_comment = 0;
+static int in_line_comment = 0;
 
 #define TOK_MAX 512
-#define TYPE_MAX 1024
+static char string[TOK_MAX];
+static size_t str_top = 0;
 
-char string[TOK_MAX];
-size_t str_top = 0;
+static char *last_struct = NULL;
+static char *current_struct = NULL;
 
-struct TypeInfo genetic[TYPE_MAX] = {0};
-size_t gen_top = 0;
+static enum Token last_token = TOK_NONE;
+static enum Token current_token = TOK_NONE;
+static enum State state = ST_NONE;
 
-char *last_struct = NULL;
-char *current_struct = NULL;
-
-enum Token last_token = TOK_NONE;
-enum Token current_token = TOK_NONE;
-enum State state = ST_NONE;
-
-void clear_string() {
+static void clear_string() {
     memset(string, 0, TOK_MAX);
     str_top = 0;
 }
 
-void set_token(enum Token tok) {
+static void set_token(enum Token tok) {
     if(current_token != tok) {
         last_token = current_token;
         current_token = tok;
     }
 }
 
-void test_genetics_readwrite(void) {
-    int i, count_in = 0, count_out = 0;
-    struct TypeInfo gen[256];
-    const char *out_filename = "genetics_out.dat";
-    FILE *tmp = fopen(out_filename, "wb");
-    genetics_save(tmp, genetic);
-    fclose(tmp);
-    fopen(out_filename, "rb");
-    genetics_load(tmp, gen, 256);
-    //genetics_print(gen);
-    fclose(tmp);
+void genetics_parse(FILE *file, struct TypeInfo *gen, size_t max_count) {
+    size_t gen_top = 0;
 
-    while(genetic[count_out].struct_name != 0) { ++count_out; }
-    while(gen[count_in].struct_name != 0) { ++count_in; }
-    
-    assert(count_out == count_in);
-    for(i = 0; i < count_in; ++i) {
-    #define compare_string(_str) \
-        assert(0 == strcmp(gen[i]._str, genetic[i]._str));
-    #define compare_vals(_val) \
-        assert(gen[i]._val == genetic[i]._val);
+    assert(max_count <= GEN_MAX);
 
-        compare_string(struct_name);
-        compare_string(member_name);
-        compare_string(type_name);
-        compare_vals(size);
-        compare_vals(count);
-        compare_vals(offset);
-        compare_vals(type);
-    
-    #undef compare_string
-    #undef compare_vals
-    }
-
-    printf("Successful read/write of genetics data to/from %s\n", out_filename);
-}
-
-
-
-int main(int argc, char **argv) {
-    puts("");
-
-    while(EOF != (c = getc(stdin))) {
+    while(EOF != (c = getc(file))) {
         switch(c) {
         case '/':
             if(last == '*' && in_comment)
@@ -144,11 +102,11 @@ int main(int argc, char **argv) {
             break;
         case ';':
             set_token(TOK_SEMICOLON);
-            //printf("SEMICOLON\n");
+            ////printf("SEMICOLON\n");
             break;
         default:
             if(!in_comment && !in_line_comment) {
-                //fprintf(stderr,"%c", c);
+                //f//printf(stderr,"%c", c);
             
                 assert(str_top + 1 < TOK_MAX - 1);
                 string[str_top++] = c;
@@ -164,7 +122,7 @@ int main(int argc, char **argv) {
 
         switch(current_token) {
             case TOK_STRUCT:
-                printf("expecting struct name...\n");
+                //printf("expecting struct name...\n");
                 clear_string();
                 break;
             case TOK_WHITESPACE:
@@ -173,7 +131,7 @@ int main(int argc, char **argv) {
                 }
                 if(last_token == TOK_NAME && state == ST_STRUCT_PREFIX) {
                     state = ST_STRUCT_NAME;
-                    printf("got struct named: %s\n", string);
+                    //printf("got struct named: %s\n", string);
                     
                     last_struct = current_struct;
                     current_struct = strdup(string);
@@ -182,11 +140,11 @@ int main(int argc, char **argv) {
                 }
                 if(last_token == TOK_NAME && state == ST_IN_STRUCT) {
                     state = ST_TYPE_PREFIX;
-                    printf("    type: %s ", string);
+                    //printf("    type: %s ", string);
                     last_token = TOK_NONE;
 
-                    genetic[gen_top].struct_name = current_struct;
-                    genetic[gen_top].type_name = strdup(string);
+                    gen[gen_top].struct_name = current_struct;
+                    gen[gen_top].type_name = strdup(string);
 
                     clear_string();
                 }
@@ -196,30 +154,30 @@ int main(int argc, char **argv) {
                 break;
             case TOK_SEMICOLON:
                 if(last_token == TOK_NAME && state == ST_TYPE_PREFIX) {
-                    printf("name: %s END VAR\n", string);
+                    //printf("name: %s END VAR\n", string);
                     state = ST_IN_STRUCT;
                     last_token = TOK_NONE;
 
-                    genetic[gen_top].count = 1;
-                    genetic[gen_top].member_name = strdup(string);
-                    genetic[gen_top].type = TYPE_OPAQUE;
+                    gen[gen_top].count = 1;
+                    gen[gen_top].member_name = strdup(string);
+                    gen[gen_top].type = TYPE_OPAQUE;
                     ++gen_top;
-                    assert(gen_top < TYPE_MAX);
+                    assert(gen_top < max_count);
 
                     clear_string();
                 }
                 if(last_token == TOK_NAME && state == ST_STRUCT_NAME) {
-                    printf("    -> name: %s END NESTED STRUCT\n", string);
+                    //printf("    -> name: %s END NESTED STRUCT\n", string);
                     state = ST_IN_STRUCT;
                     last_token = TOK_NONE;
 
-                    genetic[gen_top].count = 1;
-                    genetic[gen_top].struct_name = last_struct;
-                    genetic[gen_top].type_name = current_struct;
-                    genetic[gen_top].member_name = strdup(string);
-                    genetic[gen_top].type = TYPE_STRUCT;
+                    gen[gen_top].count = 1;
+                    gen[gen_top].struct_name = last_struct;
+                    gen[gen_top].type_name = current_struct;
+                    gen[gen_top].member_name = strdup(string);
+                    gen[gen_top].type = TYPE_STRUCT;
                     ++gen_top;
-                    assert(gen_top < TYPE_MAX);
+                    assert(gen_top < max_count);
 
                     current_struct = last_struct;
                     clear_string();
@@ -230,7 +188,7 @@ int main(int argc, char **argv) {
                 break;
             case TOK_OPEN_BRACE:
                 if(state == ST_STRUCT_NAME) {
-                    printf("BEGIN STRUCT\n");
+                    //printf("BEGIN STRUCT\n");
                     state = ST_IN_STRUCT;
                 }
                 else {
@@ -239,7 +197,7 @@ int main(int argc, char **argv) {
                 break;
             case TOK_CLOSE_BRACE:
                 if(state == ST_IN_STRUCT) {
-                    printf("END STRUCT\n\n");
+                    //printf("END STRUCT\n\n");
                     state = ST_NONE;
                 }
                 else {
@@ -248,10 +206,10 @@ int main(int argc, char **argv) {
                 break;
             case TOK_OPEN_SQUARE:
                 if(last_token == TOK_NAME && state == ST_TYPE_PREFIX) {
-                    printf("name: %s ", string);
+                    //printf("name: %s ", string);
                     state = ST_IN_ARRAYNUM;
 
-                    genetic[gen_top].member_name = strdup(string);
+                    gen[gen_top].member_name = strdup(string);
 
                     clear_string();
                 }
@@ -261,14 +219,14 @@ int main(int argc, char **argv) {
                 break;
             case TOK_CLOSE_SQUARE:
                 if(last_token == TOK_NAME && state == ST_IN_ARRAYNUM) {
-                    printf("count: %s END ARRAY\n", string);
+                    //printf("count: %s END ARRAY\n", string);
                     state = ST_IN_STRUCT;
                     last_token = TOK_NONE;
 
-                    genetic[gen_top].count = atoi(string);
-                    genetic[gen_top].type = TYPE_OPAQUE;
+                    gen[gen_top].count = atoi(string);
+                    gen[gen_top].type = TYPE_OPAQUE;
                     gen_top++;
-                    assert(gen_top < TYPE_MAX);
+                    assert(gen_top < max_count);
 
                     clear_string();
                 }
@@ -278,8 +236,43 @@ int main(int argc, char **argv) {
                 break;
         }
     }
-
-    genetics_print(genetic);
-    test_genetics_readwrite();
-    return 0;
 }
+
+/*
+void test_genetics_readwrite(void) {
+    int i, count_in = 0, count_out = 0;
+    struct TypeInfo gen[256];
+    const char *out_filename = "genetics_out.dat";
+    FILE *tmp = fopen(out_filename, "wb");
+    genetics_save(tmp, genetic);
+    fclose(tmp);
+    fopen(out_filename, "rb");
+    genetics_load(tmp, gen, 256);
+    //genetics_print(gen);
+    fclose(tmp);
+
+    while(gen[count_out].struct_name != 0) { ++count_out; }
+    while(gen[count_in].struct_name != 0) { ++count_in; }
+    
+    assert(count_out == count_in);
+    for(i = 0; i < count_in; ++i) {
+    #define compare_string(_str) \
+        assert(0 == strcmp(gen[i]._str, gen[i]._str));
+    #define compare_vals(_val) \
+        assert(gen[i]._val == gen[i]._val);
+
+        compare_string(struct_name);
+        compare_string(member_name);
+        compare_string(type_name);
+        compare_vals(size);
+        compare_vals(count);
+        compare_vals(offset);
+        compare_vals(type);
+    
+    #undef compare_string
+    #undef compare_vals
+    }
+
+    printf("Successful read/write of genetics data to/from %s\n", out_filename);
+}
+*/
