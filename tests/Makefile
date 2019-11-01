@@ -8,4 +8,4 @@ all:
 
 clean:
 	rm -Rf build
-
+	rm *.bin
