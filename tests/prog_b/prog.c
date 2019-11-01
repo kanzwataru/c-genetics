@@ -2,6 +2,8 @@
 #include "genetics.h"
 #include <stdio.h>
 #include <assert.h>
+#include <string.h>
+#include <stdlib.h>
 
 static struct Foo f = {
     {
@@ -19,6 +21,7 @@ static struct Bar b = {
 };
 
 static struct TypeInfo structs_gen[GEN_MAX];
+static struct TypeInfo foreign_gen[GEN_MAX];
 
 static void print_bar(struct Bar *bar, int indents)
 {
@@ -46,10 +49,26 @@ static void print_foo(struct Foo *foo)
     printf("end Foo\n\n");
 }
 
+void help(void)
+{
+    puts("prog_b <out>");
+    puts("prog_b <compare> <in genetics> <in data>");
+}
+
 int main(int argc, char **argv)
 {
     int ret;
     FILE *fp;
+
+    size_t size = 0;
+    void *data;
+    struct Foo foreign_foo;
+    struct Bar foreign_bar;
+
+    if(argc < 2) {
+        help();
+        return 1;
+    }
 
     /* get our own genetics */
     fp = fopen("prog_b/structs.h", "r");
@@ -57,22 +76,55 @@ int main(int argc, char **argv)
     genetics_parse(fp, structs_gen, GEN_MAX);
     fclose(fp);
 
-    /* write out own genetics */
-    fp = fopen("prog_b_gen.bin", "wb");
-    assert(fp);
-    genetics_save(fp, structs_gen);
-    fclose(fp);
+    if(0 == strcmp("out", argv[1])) {
+        /* write out own genetics */
+        fp = fopen("prog_b_gen.bin", "wb");
+        assert(fp);
+        genetics_save(fp, structs_gen);
+        fclose(fp);
 
-    /* write out own data */
-    fp = fopen("prog_b_data.bin", "wb");
-    assert(fp);
-    ret = fwrite(&f, sizeof(f), 1, fp); assert(ret == 1);
-    ret = fwrite(&b, sizeof(b), 1, fp); assert(ret == 1);
-    fclose(fp);
+        /* write out own data */
+        fp = fopen("prog_b_data.bin", "wb");
+        assert(fp);
+        ret = fwrite(&f, sizeof(f), 1, fp); assert(ret == 1);
+        ret = fwrite(&b, sizeof(b), 1, fp); assert(ret == 1);
+        fclose(fp);
 
-    /* print own data */
-    print_foo(&f);
-    print_bar(&b, 0);
+        /* print own data */
+        print_foo(&f);
+        print_bar(&b, 0);
+    }
+    else if(0 == strcmp("compare", argv[1])) {
+        if(argc != 4) {
+            help();
+            return 1;
+        }
+
+        /* read the provided genetics */
+        fp = fopen(argv[2], "rb");
+        assert(fp);
+        genetics_load(fp, foreign_gen, GEN_MAX);
+        fclose(fp);
+
+        /* read the data */
+        fp = fopen(argv[3], "rb");
+        assert(fp);
+        while(getc(fp) != EOF) ++size;
+        rewind(fp);
+
+        data = calloc(size, 1);
+        assert(data);
+        ret = fread(data, 1, size, fp); assert(ret == size);
+
+        genetics_copy(&foreign_foo, data, structs_gen, foreign_gen, "Foo");
+
+        /* print the data */
+        print_foo(&foreign_foo);
+    }
+    else {
+        help();
+        return 1;
+    }
 
     return 0;
 }
