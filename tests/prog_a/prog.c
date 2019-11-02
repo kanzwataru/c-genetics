@@ -50,15 +50,9 @@ int main(int argc, char **argv)
     FILE *fp;
 
     /* get our own genetics */
-    fp = fopen("prog_a/structs.h", "r");
+    fp = fopen("build/prog_a_genetics.bin", "r");
     assert(fp);
-    genetics_parse(fp, structs_gen, GEN_MAX);
-    fclose(fp);
-
-    /* write out own genetics */
-    fp = fopen("prog_a_gen.bin", "wb");
-    assert(fp);
-    genetics_save(fp, structs_gen);
+    genetics_load(fp, structs_gen, GEN_MAX);
     fclose(fp);
 
     /* write out own data */

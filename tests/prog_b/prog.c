@@ -71,18 +71,12 @@ int main(int argc, char **argv)
     }
 
     /* get our own genetics */
-    fp = fopen("prog_b/structs.h", "r");
+    fp = fopen("build/prog_b_genetics.bin", "r");
     assert(fp);
-    genetics_parse(fp, structs_gen, GEN_MAX);
+    genetics_load(fp, structs_gen, GEN_MAX);
     fclose(fp);
 
     if(0 == strcmp("out", argv[1])) {
-        /* write out own genetics */
-        fp = fopen("prog_b_gen.bin", "wb");
-        assert(fp);
-        genetics_save(fp, structs_gen);
-        fclose(fp);
-
         /* write out own data */
         fp = fopen("prog_b_data.bin", "wb");
         assert(fp);
